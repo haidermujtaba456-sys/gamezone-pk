@@ -21,7 +21,7 @@ const { DatabaseSync } = require("node:sqlite");
 // ---------------------------------------------------------------- config
 const PORT = parseInt(process.env.PORT || "3000", 10);
 const NODE_ENV = process.env.NODE_ENV || "development";
-const FRONTEND_DIR = path.join(__dirname, "..", "gaming-website");
+const FRONTEND_DIR = path.join(__dirname, "..");
 const DATA_DIR = path.join(__dirname, "data");
 const DB_PATH = path.join(DATA_DIR, "gamezone.db");
 
