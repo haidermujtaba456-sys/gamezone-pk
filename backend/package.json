@@ -1,0 +1,21 @@
+{
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.4.1",
+    "helmet": "^7.2.0",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "description": "Real Node.js + Express + SQLite backend for the GameZone PK gaming website. Serves the static frontend, stores contact messages, newsletter subscribers, game scores, and powers the admin panel.",
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "server.js",
+  "name": "gamezone-pk-backend",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "type": "commonjs",
+  "version": "1.0.0"
+}

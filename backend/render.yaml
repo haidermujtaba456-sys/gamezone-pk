@@ -1,0 +1,17 @@
+# Render free web service for the GameZone PK backend.
+# In Render: New → Web Service → connect your GitHub repo → set Root Directory to "backend".
+# Render reads this file automatically when it is in the repo root or the service root.
+services:
+  - type: web
+    name: gamezone-pk-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true

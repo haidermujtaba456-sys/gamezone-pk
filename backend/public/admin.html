@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin Panel | GameZone PK</title>
+<style>
+:root{--bg:#0A0E1A;--navy:#111A33;--card:#0F1830;--purple:#7C3AED;--blue:#00D4FF;--text:#fff;--muted:#A8B3CF;--line:#2A3A5F;--green:#22C55E;--red:#EF4444}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif}
+header{background:var(--navy);padding:14px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:5}
+header h1{font-size:1.2rem;margin:0}header h1 span{color:var(--blue)}
+main{max-width:1080px;margin:0 auto;padding:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+h2{margin-top:0}label{display:block;margin:10px 0 4px;color:var(--muted);font-size:.9rem}
+input,select,textarea{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:#0A0E1A;color:#fff;font:inherit}
+textarea{min-height:120px}
+button{cursor:pointer;background:var(--purple);color:#fff;border:0;border-radius:8px;padding:10px 18px;font-weight:700}
+button.ghost{background:transparent;border:1px solid var(--line)}
+button.danger{background:var(--red)}
+button.small{padding:6px 10px;font-size:.85rem}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.tabs button{background:#0F1830;border:1px solid var(--line)}
+.tabs button.active{background:var(--purple)}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted)}
+.badge{display:inline-block;background:#7C3AED33;color:var(--blue);border-radius:20px;padding:2px 10px;font-size:.8rem}
+.muted{color:var(--muted);font-size:.9rem}
+.ok{color:var(--green)} .err{color:var(--red)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.stat b{font-size:1.6rem;display:block}
+.hidden{display:none}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:700px){.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><h1>🎮 Game<span>Zone</span> PK — Admin Panel</h1><span><a href="/" style="color:#00D4FF">View site</a> &nbsp; <button class="ghost small hidden" id="logoutBtn">Log out</button></span></header>
+<main>
+  <div id="loginBox" class="card" style="max-width:420px;margin:40px auto">
+    <h2>Admin Login</h2>
+    <p class="muted">Log in with the admin account. Default local demo login is <b>admin / admin123</b> — change it in <code>.env</code> (ADMIN_PASSWORD) before deploying.</p>
+    <label>Username</label><input id="loginUser" value="admin" autocomplete="username">
+    <label>Password</label><input id="loginPass" type="password" autocomplete="current-password">
+    <p><button id="loginBtn">Log In</button></p>
+    <p id="loginMsg"></p>
+  </div>
+
+  <div id="dash" class="hidden">
+    <div class="tabs" id="tabs"></div>
+    <div id="tab-overview" class="tab">
+      <div class="stats" id="stats"></div>
+      <div class="card"><h2>Welcome</h2>
+      <p class="muted">This panel manages the real GameZone PK backend. Contact messages, newsletter subscribers and game scores are stored in the server database — not in any visitor's browser. Use the tabs above to read messages, manage subscribers, view leaderboards, and add / edit / delete games, news, reviews and guides.</p>
+      <p class="muted">⚠️ Change the default admin password (ADMIN_PASSWORD) and JWT_SECRET in <code>.env</code> before putting this server on the public internet.</p></div>
+    </div>
+    <div id="tab-contacts" class="tab hidden"><div class="card"><h2>Contact Messages</h2><div id="contactsList"><p class="muted">Loading…</p></div></div></div>
+    <div id="tab-subscribers" class="tab hidden"><div class="card"><h2>Newsletter Subscribers</h2><p><button id="exportCsvBtn" class="ghost">⬇ Export CSV</button></p><div id="subsList"><p class="muted">Loading…</p></div></div></div>
+    <div id="tab-scores" class="tab hidden"><div class="card"><h2>Leaderboard — Top Scores</h2><label>Game</label><select id="scoreGame"></select><div id="scoresList"><p class="muted">Loading…</p></div></div></div>
+    <div id="tab-games" class="tab hidden"><div class="card"><h2>Games</h2><div id="gamesList"></div><h3 id="gameFormTitle">Add Game</h3><div id="gameForm"></div><p><button id="gameSaveBtn">Save Game</button> <button class="ghost" id="gameResetBtn">Clear form</button></p><p id="gameMsg"></p></div></div>
+    <div id="tab-news" class="tab hidden"><div class="card"><h2>News</h2><div id="newsList"></div><h3>Add / Edit News</h3><div id="newsForm"></div><p><button id="newsSaveBtn">Save News</button> <button class="ghost" id="newsResetBtn">Clear form</button></p><p id="newsMsg"></p></div></div>
+    <div id="tab-reviews" class="tab hidden"><div class="card"><h2>Reviews</h2><div id="reviewsList"></div><h3>Add / Edit Review</h3><div id="reviewsForm"></div><p><button id="reviewsSaveBtn">Save Review</button> <button class="ghost" id="reviewsResetBtn">Clear form</button></p><p id="reviewsMsg"></p></div></div>
+    <div id="tab-guides" class="tab hidden"><div class="card"><h2>Guides</h2><div id="guidesList"></div><h3>Add / Edit Guide</h3><div id="guidesForm"></div><p><button id="guidesSaveBtn">Save Guide</button> <button class="ghost" id="guidesResetBtn">Clear form</button></p><p id="guidesMsg"></p></div></div>
+  </div>
+</main>
+<script>
+(function(){
+"use strict";
+var token = sessionStorage.getItem("gzpk-admin-token") || "";
+var API = "";
+function h(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+function api(path, opts){
+  opts = opts || {};
+  opts.headers = Object.assign({"Content-Type":"application/json"}, opts.headers||{});
+  if(token) opts.headers["Authorization"] = "Bearer " + token;
+  return fetch(API + path, opts).then(function(r){ return r.json().then(function(j){ if(!r.ok) throw new Error(j.error || ("Request failed ("+r.status+")")); return j; }); });
+}
+function showTab(name){
+  document.querySelectorAll(".tab").forEach(function(t){t.classList.add("hidden");});
+  var el = document.getElementById("tab-"+name); if(el) el.classList.remove("hidden");
+  document.querySelectorAll("#tabs button").forEach(function(b){b.classList.toggle("active", b.dataset.tab===name);});
+  if(name==="contacts") loadContacts();
+  if(name==="subscribers") loadSubs();
+  if(name==="scores") loadScores();
+  if(name==="games") loadContent("games");
+  if(name==="news") loadContent("news");
+  if(name==="reviews") loadContent("reviews");
+  if(name==="guides") loadContent("guides");
+}
+var TABS=[["overview","Overview"],["contacts","Contact Messages"],["subscribers","Subscribers"],["scores","Scores"],["games","Games"],["news","News"],["reviews","Reviews"],["guides","Guides"]];
+var tabsEl=document.getElementById("tabs");
+TABS.forEach(function(t){var b=document.createElement("button");b.textContent=t[1];b.dataset.tab=t[0];b.onclick=function(){showTab(t[0]);};tabsEl.appendChild(b);});
+
+function login(){
+  var u=document.getElementById("loginUser").value.trim(), p=document.getElementById("loginPass").value;
+  document.getElementById("loginMsg").textContent="Logging in…";
+  fetch(API+"/api/admin/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,password:p})})
+  .then(function(r){return r.json().then(function(j){if(!r.ok) throw new Error(j.error||"Login failed"); return j;});})
+  .then(function(j){token=j.token; sessionStorage.setItem("gzpk-admin-token", token);
+    document.getElementById("loginBox").classList.add("hidden");
+    document.getElementById("dash").classList.remove("hidden");
+    document.getElementById("logoutBtn").classList.remove("hidden");
+    showTab("overview"); loadStats(); loadScoreGames();})
+  .catch(function(e){document.getElementById("loginMsg").innerHTML='<span class="err">'+h(e.message)+'</span>';});
+}
+document.getElementById("loginBtn").onclick=login;
+document.getElementById("loginPass").addEventListener("keydown",function(e){if(e.key==="Enter")login();});
+document.getElementById("logoutBtn").onclick=function(){token="";sessionStorage.removeItem("gzpk-admin-token");location.reload();};
+
+function loadStats(){
+  Promise.all([api("/api/admin/contacts"),api("/api/admin/subscribers"),api("/api/admin/scores?limit=1"),api("/api/games")])
+  .then(function(r){
+    var unread=r[0].filter(function(c){return !c.is_read;}).length;
+    document.getElementById("stats").innerHTML=
+      '<div class="stat"><b>'+r[0].length+'</b>Contact messages ('+unread+' unread)</div>'+
+      '<div class="stat"><b>'+r[1].length+'</b>Newsletter subscribers</div>'+
+      '<div class="stat"><b>'+r[3].length+'</b>Games in library</div>'+
+      '<div class="stat"><b>'+r[2].length+'</b>Scores recorded (top list)</div>';
+  }).catch(function(e){document.getElementById("stats").innerHTML='<p class="err">'+h(e.message)+'</p>';});
+}
+function loadContacts(){
+  api("/api/admin/contacts").then(function(list){
+    if(!list.length){document.getElementById("contactsList").innerHTML='<p class="muted">No messages yet.</p>';return;}
+    var html='<table><tr><th>Date</th><th>Name / Email</th><th>Subject</th><th>Message</th><th></th></tr>';
+    list.forEach(function(c){
+      html+='<tr><td>'+h(c.created_at)+'</td><td><b>'+h(c.name)+'</b><br><span class="muted">'+h(c.email)+'</span>'+(c.is_read?'':' <span class="badge">New</span>')+'</td><td>'+h(c.subject)+'</td><td>'+h(c.message)+'</td><td><button class="small ghost" onclick="markRead('+c.id+')">Mark read</button> <button class="small danger" onclick="delContact('+c.id+')">Delete</button></td></tr>';
+    });
+    document.getElementById("contactsList").innerHTML=html+'</table>';
+  }).catch(function(e){document.getElementById("contactsList").innerHTML='<p class="err">'+h(e.message)+'</p>';});
+}
+window.markRead=function(id){api("/api/admin/contacts/"+id+"/read",{method:"PATCH"}).then(loadContacts);};
+window.delContact=function(id){if(confirm("Delete this message?"))api("/api/admin/contacts/"+id,{method:"DELETE"}).then(loadContacts);};
+function loadSubs(){
+  api("/api/admin/subscribers").then(function(list){
+    window._subs=list;
+    if(!list.length){document.getElementById("subsList").innerHTML='<p class="muted">No subscribers yet.</p>';return;}
+    var html='<table><tr><th>Email</th><th>Subscribed</th><th></th></tr>';
+    list.forEach(function(s){html+='<tr><td>'+h(s.email)+'</td><td>'+h(s.created_at)+'</td><td><button class="small danger" onclick="delSub('+s.id+')">Delete</button></td></tr>';});
+    document.getElementById("subsList").innerHTML=html+'</table>';
+  }).catch(function(e){document.getElementById("subsList").innerHTML='<p class="err">'+h(e.message)+'</p>';});
+}
+window.delSub=function(id){if(confirm("Delete this subscriber?"))api("/api/admin/subscribers/"+id,{method:"DELETE"}).then(loadSubs);};
+document.getElementById("exportCsvBtn").onclick=function(){
+  var rows=(window._subs||[]).map(function(s){return s.email+","+s.created_at;});
+  var blob=new Blob([ "email,subscribed_at\n"+rows.join("\n") ],{type:"text/csv"});
+  var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="gamezone-subscribers.csv";a.click();
+};
+function loadScoreGames(){
+  api("/api/games").then(function(games){
+    var sel=document.getElementById("scoreGame");
+    sel.innerHTML=games.map(function(g){return '<option value="'+h(g.slug)+'">'+h(g.title)+'</option>';}).join("");
+    sel.onchange=loadScores; loadScores();
+  });
+}
+function loadScores(){
+  var slug=document.getElementById("scoreGame").value;
+  if(!slug) return;
+  api("/api/scores/"+slug+"?limit=10").then(function(list){
+    if(!list.length){document.getElementById("scoresList").innerHTML='<p class="muted">No scores yet for this game.</p>';return;}
+    var html='<table><tr><th>#</th><th>Player</th><th>Score</th><th>Date</th></tr>';
+    list.forEach(function(s,i){html+='<tr><td>'+(i+1)+'</td><td>'+h(s.player_name)+'</td><td><b>'+s.score+'</b></td><td>'+h(s.created_at)+'</td></tr>';});
+    document.getElementById("scoresList").innerHTML=html+'</table>';
+  }).catch(function(e){document.getElementById("scoresList").innerHTML='<p class="err">'+h(e.message)+'</p>';});
+}
+
+// ---- generic content CRUD ----
+var FIELDS={
+  games:[["slug","Slug (e.g. snake)"],["title","Title"],["category","Category slug (arcade, puzzle…)"],["cat_label","Category label"],["description","Short description"],["long_desc","Long description (textarea)","textarea"],["rating","Rating 0–5"],["plays","Plays (e.g. 128,400)"],["added","Added date (YYYY-MM-DD)"],["difficulty","Difficulty"],["devices","Devices"],["icon","Icon (emoji)"],["color","Colour (hex)"]],
+  news:[["slug","Slug"],["title","Title"],["excerpt","Excerpt"],["body","Body (textarea)","textarea"],["author","Author"],["published_at","Published date (YYYY-MM-DD)"]],
+  reviews:[["slug","Slug"],["game_slug","Game slug"],["title","Title"],["body","Body (textarea)","textarea"],["rating","Rating 0–5"],["verdict","Verdict"],["author","Author"]],
+  guides:[["slug","Slug"],["title","Title"],["body","Body (textarea)","textarea"],["category","Category"],["author","Author"]]
+};
+var cache={};
+function buildForm(kind){
+  var wrap=document.getElementById(kind+"Form"); if(!wrap || wrap.dataset.built) return;
+  wrap.dataset.built="1";
+  FIELDS[kind].forEach(function(f){
+    var lab=document.createElement("label"); lab.textContent=f[1]; wrap.appendChild(lab);
+    var el = f[2]==="textarea" ? document.createElement("textarea") : document.createElement("input");
+    el.id=kind+"-f-"+f[0]; wrap.appendChild(el);
+  });
+}
+function readForm(kind){
+  var data={};
+  FIELDS[kind].forEach(function(f){var el=document.getElementById(kind+"-f-"+f[0]); data[f[0]]=el?el.value.trim():"";});
+  return data;
+}
+function fillForm(kind, item){
+  buildForm(kind);
+  FIELDS[kind].forEach(function(f){var el=document.getElementById(kind+"-f-"+f[0]); if(el) el.value=item[f[0]]==null?"":item[f[0]];});
+  var slugEl=document.getElementById(kind+"-f-slug"); if(slugEl) slugEl.dataset.editing=item.slug||"";
+}
+function clearForm(kind){
+  buildForm(kind);
+  FIELDS[kind].forEach(function(f){var el=document.getElementById(kind+"-f-"+f[0]); if(el){el.value=""; delete el.dataset.editing;}});
+}
+function loadContent(kind){
+  buildForm(kind);
+  var listEl=document.getElementById(kind+"List");
+  var pub = kind==="games" ? "/api/games" : "/api/"+kind;
+  api(pub).then(function(list){
+    cache[kind]=list;
+    if(!list.length){listEl.innerHTML='<p class="muted">Nothing here yet.</p>';return;}
+    var html='<table><tr><th>Title</th><th>Slug</th><th></th></tr>';
+    list.forEach(function(it){
+      html+='<tr><td><b>'+h(it.title)+'</b></td><td>'+h(it.slug)+'</td><td><button class="small ghost" onclick="editItem(\''+kind+'\',\''+h(it.slug)+'\')">Edit</button> <button class="small danger" onclick="delItem(\''+kind+'\',\''+h(it.slug)+'\')">Delete</button></td></tr>';
+    });
+    listEl.innerHTML=html+'</table>';
+  }).catch(function(e){listEl.innerHTML='<p class="err">'+h(e.message)+'</p>';});
+}
+window.editItem=function(kind, slug){
+  var item=(cache[kind]||[]).find(function(x){return x.slug===slug;});
+  if(item) fillForm(kind, item);
+  document.getElementById(kind+"Msg").textContent="Editing: "+slug+" — save to update, or clear the form to add a new one.";
+};
+window.delItem=function(kind, slug){
+  if(!confirm("Delete "+slug+"?")) return;
+  api("/api/admin/"+kind+"/"+slug,{method:"DELETE"}).then(function(){loadContent(kind);}).catch(function(e){alert(e.message);});
+};
+["games","news","reviews","guides"].forEach(function(kind){
+  document.getElementById(kind+"SaveBtn").onclick=function(){
+    var data=readForm(kind);
+    var slugEl=document.getElementById(kind+"-f-slug");
+    var editing=slugEl && slugEl.dataset.editing;
+    var msg=document.getElementById(kind+"Msg");
+    msg.textContent="Saving…";
+    var req = editing
+      ? api("/api/admin/"+kind+"/"+editing,{method:"PUT",body:JSON.stringify(data)})
+      : api("/api/admin/"+kind,{method:"POST",body:JSON.stringify(data)});
+    req.then(function(){msg.innerHTML='<span class="ok">Saved.</span>'; clearForm(kind); loadContent(kind);})
+       .catch(function(e){msg.innerHTML='<span class="err">'+h(e.message)+'</span>';});
+  };
+  document.getElementById(kind+"ResetBtn").onclick=function(){clearForm(kind); document.getElementById(kind+"Msg").textContent="";};
+});
+
+// Auto-login state: if a token is stored, show the dashboard.
+if(token){
+  document.getElementById("loginBox").classList.add("hidden");
+  document.getElementById("dash").classList.remove("hidden");
+  document.getElementById("logoutBtn").classList.remove("hidden");
+  showTab("overview"); loadStats(); loadScoreGames();
+}
+})();
+</script>
+</body>
+</html>
