@@ -1,0 +1,4 @@
+# GameZone PK — ads.txt
+# IMPORTANT: Replace the placeholder line below with your real AdSense publisher ID AFTER your AdSense account and site are approved.
+# Example (do NOT use as-is): google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
+# google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
