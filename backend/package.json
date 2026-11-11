@@ -9,7 +9,7 @@
   },
   "description": "Real Node.js + Express + SQLite backend for the GameZone PK gaming website. Serves the static frontend, stores contact messages, newsletter subscribers, game scores, and powers the admin panel.",
   "engines": {
-    "node": ">=18"
+    "node": ">=22 <25"
   },
   "main": "server.js",
   "name": "gamezone-pk-backend",
