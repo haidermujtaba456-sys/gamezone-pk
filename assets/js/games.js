@@ -13,18 +13,24 @@ function bindRestart(fn){var b=$('restartBtn'); if(b) b.onclick=fn; var p=$('pla
 // ---------- SNAKE ----------
 function initSnake(){
  if(!setupCanvas(400,400)) return;
- var cell=20, snake, dir, food, score, timer, over;
- function reset(){snake=[{x:10,y:10},{x:9,y:10},{x:8,y:10}]; dir={x:1,y:0}; score=0; over=false; placeFood(); setScore('Score: 0'); setStatus('Use arrow keys or the buttons below. Eat the orbs!'); clearInterval(timer); timer=setInterval(tick,130);}
- function placeFood(){food={x:Math.floor(Math.random()*20),y:Math.floor(Math.random()*20)};}
- function tick(){if(over)return; var head={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
+ var cell=20, snake, dir, food, score, timer, over, started=false;
+ // Idle on load: the board is drawn but the snake does NOT move until
+ // Play Now (or an arrow key / direction button) starts it. Previously
+ // reset() started the 130ms timer on page load, so the snake raced
+ // right from x=10 and hit the wall in ~1.3s — before the player had
+ // even pressed Play. That is why the game looked "not working".
+ function reset(){snake=[{x:7,y:10},{x:6,y:10},{x:5,y:10}]; dir={x:1,y:0}; score=0; over=false; started=false; placeFood(); setScore('Score: 0'); setStatus('Press Play Now to start — then steer with the arrow keys or the buttons below.'); clearInterval(timer); draw();}
+ function start(){reset(); started=true; setStatus('Use arrow keys or the buttons below. Eat the orbs!'); timer=setInterval(tick,150);}
+ function placeFood(){do{food={x:Math.floor(Math.random()*20),y:Math.floor(Math.random()*20)};}while(snake.some(function(s){return s.x===food.x&&s.y===food.y;}));}
+ function tick(){if(over||!started)return; var head={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
   if(head.x<0||head.y<0||head.x>=20||head.y>=20||snake.some(function(s){return s.x===head.x&&s.y===head.y;})){over=true; clearInterval(timer); setStatus('Game over! Final score: '+score+'. Press Restart to play again.'); return;}
   snake.unshift(head);
   if(head.x===food.x&&head.y===food.y){score+=10; setScore('Score: '+score); placeFood();} else snake.pop();
   draw();}
  function draw(){ctx.fillStyle='#0A0E1A'; ctx.fillRect(0,0,400,400); ctx.fillStyle='#FACC15'; ctx.fillRect(food.x*cell+3,food.y*cell+3,14,14); snake.forEach(function(s,i){ctx.fillStyle=i===0?'#4ADE80':'#22C55E'; ctx.fillRect(s.x*cell+1,s.y*cell+1,18,18);});}
- document.addEventListener('keydown',function(e){if(GAME_SLUG!=='snake')return; if(e.key==='ArrowUp'&&dir.y!==1)dir={x:0,y:-1}; else if(e.key==='ArrowDown'&&dir.y!==-1)dir={x:0,y:1}; else if(e.key==='ArrowLeft'&&dir.x!==1)dir={x:-1,y:0}; else if(e.key==='ArrowRight'&&dir.x!==-1)dir={x:1,y:0};});
- [['upBtn',0,-1],['downBtn',0,1],['leftBtn',-1,0],['rightBtn',1,0]].forEach(function(b){var el=$(b[0]); if(el) el.onclick=function(){if(b[1]!==0&&dir.x!==-b[1])dir={x:b[1],y:0}; if(b[2]!==0&&dir.y!==-b[2])dir={x:0,y:b[2]};};});
- bindRestart(reset); reset();
+ document.addEventListener('keydown',function(e){if(GAME_SLUG!=='snake')return; if(!started)start(); if(e.key==='ArrowUp'&&dir.y!==1)dir={x:0,y:-1}; else if(e.key==='ArrowDown'&&dir.y!==-1)dir={x:0,y:1}; else if(e.key==='ArrowLeft'&&dir.x!==1)dir={x:-1,y:0}; else if(e.key==='ArrowRight'&&dir.x!==-1)dir={x:1,y:0};});
+ [['upBtn',0,-1],['downBtn',0,1],['leftBtn',-1,0],['rightBtn',1,0]].forEach(function(b){var el=$(b[0]); if(el) el.onclick=function(){if(!started)start(); if(b[1]!==0&&dir.x!==-b[1])dir={x:b[1],y:0}; if(b[2]!==0&&dir.y!==-b[2])dir={x:0,y:b[2]};};});
+ bindRestart(start); reset();
 }
 
 // ---------- 2048 ----------
