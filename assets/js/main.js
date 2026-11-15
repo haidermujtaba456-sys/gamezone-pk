@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', function(){
       cf.reset();
     }).catch(function(err){
       var msgs=JSON.parse(localStorage.getItem('gzpk-contact')||'[]');msgs.push(Object.assign({},payload,{date:new Date().toISOString()}));localStorage.setItem('gzpk-contact',JSON.stringify(msgs));
-      if(s){s.textContent='Your message was saved on this device only — the backend is not connected, so it did NOT reach us. Please email hello@gamezonepk.com directly instead. ('+(err&&err.message?err.message:'server unreachable')+')';s.style.display='block';}
+      if(s){s.textContent='Your message was saved on this device only — the backend is not connected, so it did NOT reach us. Please email haidermujtaba456@gmail.com directly instead. ('+(err&&err.message?err.message:'server unreachable')+')';s.style.display='block';}
       cf.reset();
     });});}
 
