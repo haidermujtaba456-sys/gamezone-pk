@@ -343,6 +343,18 @@ adminCrud("guides", ["slug", "title", "body", "category", "author"], "slug");
 
 // ---------------------------------------------------------------- frontend + admin panel
 app.get("/admin", (req, res) => res.sendFile(path.join(__dirname, "public", "admin.html")));
+// SECURITY: never serve backend code, config, or the database as static files.
+// FRONTEND_DIR is the repo root, so without this guard /backend/server.js and
+// /backend/data/gamezone.db (contact messages + newsletter emails) would be
+// publicly downloadable. /admin above is a route, not a static file, so it
+// is unaffected, and the frontend only calls /api/*.
+app.use((req, res, next) => {
+  const p = req.path;
+  if (p === "/backend" || p.startsWith("/backend/") || p === "/.git" || p.startsWith("/.git/") || p.endsWith(".env")) {
+    return res.status(404).send("Not found");
+  }
+  next();
+});
 app.use(express.static(FRONTEND_DIR));
 app.get("/api/*", (req, res) => res.status(404).json({ error: "API route not found." }));
 app.use((err, req, res, next) => {
