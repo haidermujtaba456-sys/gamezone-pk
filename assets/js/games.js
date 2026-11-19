@@ -57,7 +57,7 @@ function init2048(){
 // ---------- MEMORY MATCH ----------
 function initMemory(){
  var board=$('memoryBoard'); if(!board) return;
- var symbols=['🎮','🚀','⭐','🎯','🧩','🍕','🐍','⚡'], cards, flipped, matched, moves;
+ var symbols=['▲','●','■','◆','★','⬟','⬢','✚'], cards, flipped, matched, moves;
  function reset(){var deck=symbols.concat(symbols).sort(function(){return Math.random()-0.5;}); cards=deck; flipped=[]; matched=0; moves=0; setScore('Moves: 0 | Pairs: 0/8'); setStatus('Flip two cards. Match all 8 pairs!'); board.innerHTML=''; board.style.cssText='display:grid;grid-template-columns:repeat(4,70px);gap:8px;justify-content:center;';
   deck.forEach(function(sym,i){var b=document.createElement('button'); b.textContent='?'; b.style.cssText='width:70px;height:70px;font-size:1.6rem;background:#7C3AED;color:#fff;border:0;border-radius:10px;cursor:pointer;';
    b.onclick=function(){if(flipped.length===2||b.dataset.done)return; b.textContent=sym; b.style.background='#00D4FF'; b.style.color='#0A0E1A'; flipped.push({el:b,sym:sym});
@@ -142,10 +142,10 @@ function initMines(){
  function render(){board.innerHTML=''; board.style.cssText='display:grid;grid-template-columns:repeat(9,34px);gap:3px;justify-content:center;';
   grid.forEach(function(row,i){row.forEach(function(v,j){var b=document.createElement('button'); b.textContent=''; b.dataset.r=i; b.dataset.c=j; b.style.cssText='width:34px;height:34px;background:#1E2A4A;color:#fff;border:1px solid #3A4A73;border-radius:4px;cursor:pointer;font-weight:700;';
    b.onclick=function(){reveal(i,j,b);};
-   b.oncontextmenu=function(e){e.preventDefault(); if(b.dataset.done||over)return; if(b.textContent==='🚩'){b.textContent=''; flags--;} else{b.textContent='🚩'; flags++;} setScore('Mines: 10 | Flags: '+flags);};
+   b.oncontextmenu=function(e){e.preventDefault(); if(b.dataset.done||over)return; if(b.textContent==='⚑'){b.textContent=''; flags--;} else{b.textContent='⚑'; flags++;} setScore('Mines: 10 | Flags: '+flags);};
    board.appendChild(b);});});}
  function reveal(i,j,btn){if(over||btn.dataset.done)return; btn.dataset.done='1'; btn.style.background='#0F1830';
-  if(grid[i][j]==='M'){btn.textContent='💣'; over=true; setStatus('Boom! You hit a mine. Press Restart to try again.'); return;}
+  if(grid[i][j]==='M'){btn.textContent='✸'; over=true; setStatus('Boom! You hit a mine. Press Restart to try again.'); return;}
   revealed++; if(grid[i][j]){btn.textContent=grid[i][j]; btn.style.color='#00D4FF';}
   else{for(var di=-1;di<=1;di++)for(var dj=-1;dj<=1;dj++){var ni=i+di,nj=j+dj; if(ni>=0&&ni<size&&nj>=0&&nj<size){var nb=board.children[ni*size+nj]; if(nb&&!nb.dataset.done) reveal(ni,nj,nb);}}}
   if(revealed===size*size-mines){won=true; over=true; setStatus('You win! The minefield is clear. Well done!');}}
@@ -172,11 +172,11 @@ function initWhack(){
  var board=$('whackBoard'); if(!board) return;
  var score, timeLeft, timer, moleTimer, active=-1;
  function reset(){score=0; timeLeft=30; setScore('Score: 0 | Time: 30s'); setStatus('Tap the moles as fast as you can. 30 seconds on the clock!'); board.innerHTML=''; board.style.cssText='display:grid;grid-template-columns:repeat(3,90px);gap:8px;justify-content:center;';
-  for(var i=0;i<9;i++){var b=document.createElement('button'); b.textContent='🕳️'; b.style.cssText='width:90px;height:90px;font-size:2rem;background:#1E2A4A;border:1px solid #3A4A73;border-radius:10px;cursor:pointer;';
-   b.onclick=(function(idx,btn){return function(){if(idx===active){score++; setScore('Score: '+score+' | Time: '+timeLeft+'s'); btn.textContent='🕳️'; active=-1;}};})(i,b); board.appendChild(b);}
+  for(var i=0;i<9;i++){var b=document.createElement('button'); b.textContent='○'; b.style.cssText='width:90px;height:90px;font-size:2rem;background:#1E2A4A;border:1px solid #3A4A73;border-radius:10px;cursor:pointer;';
+   b.onclick=(function(idx,btn){return function(){if(idx===active){score++; setScore('Score: '+score+' | Time: '+timeLeft+'s'); btn.textContent='○'; active=-1;}};})(i,b); board.appendChild(b);}
   clearInterval(timer); clearInterval(moleTimer);
   timer=setInterval(function(){timeLeft--; setScore('Score: '+score+' | Time: '+timeLeft+'s'); if(timeLeft<=0){clearInterval(timer); clearInterval(moleTimer); setStatus('Time up! Final score: '+score+'. Press Restart to play again.');}},1000);
-  moleTimer=setInterval(function(){if(active>=0)board.children[active].textContent='🕳️'; active=Math.floor(Math.random()*9); board.children[active].textContent='🐹';},750);}
+  moleTimer=setInterval(function(){if(active>=0)board.children[active].textContent='○'; active=Math.floor(Math.random()*9); board.children[active].textContent='●';},750);}
  bindRestart(reset); reset();
 }
 
