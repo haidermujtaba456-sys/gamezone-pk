@@ -37,8 +37,21 @@ if (!JWT_SECRET) {
   console.warn("[warn] JWT_SECRET not set — using a random ephemeral secret (admin logins will not survive a restart). Set JWT_SECRET in .env for real use.");
 }
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
-const USING_DEFAULT_ADMIN_PASSWORD = !process.env.ADMIN_PASSWORD;
+let ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
+// SECURITY (v5): no hardcoded admin password in production. The server
+// refuses to start when NODE_ENV=production and ADMIN_PASSWORD is unset
+// (Render generates one — see backend/render.yaml). In local development
+// only, an unset value falls back to the demo password with a loud warning.
+let USING_DEFAULT_ADMIN_PASSWORD = false;
+if (!ADMIN_PASSWORD) {
+  if (NODE_ENV === "production") {
+    console.error("FATAL: ADMIN_PASSWORD is not set. Set ADMIN_PASSWORD in the environment and restart.");
+    process.exit(1);
+  }
+  ADMIN_PASSWORD = "admin123";
+  USING_DEFAULT_ADMIN_PASSWORD = true;
+  console.warn("[warn] ADMIN_PASSWORD not set — using the demo password (admin123) for LOCAL development only. Set ADMIN_PASSWORD in .env for real use.");
+}
 
 // ---------------------------------------------------------------- database
 fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -51,7 +64,7 @@ CREATE TABLE IF NOT EXISTS games (
   rating REAL NOT NULL DEFAULT 4.5, plays TEXT NOT NULL DEFAULT '0',
   added TEXT NOT NULL DEFAULT '', difficulty TEXT NOT NULL DEFAULT 'Medium',
   devices TEXT NOT NULL DEFAULT 'Desktop, Mobile, Tablet',
-  icon TEXT NOT NULL DEFAULT '🎮', color TEXT NOT NULL DEFAULT '#7C3AED',
+  icon TEXT NOT NULL DEFAULT 'G', color TEXT NOT NULL DEFAULT '#7C3AED',
   featured INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS categories (
@@ -141,6 +154,15 @@ function cleanStr(v, max) {
 function slugify(v) {
   return String(v || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
 }
+// SECURITY (v5): strip angle brackets from free-text fields submitted by
+// visitors. The admin panel also HTML-escapes on render; this is defence
+// in depth so no markup can ever be stored from a public form.
+function stripAngles(v) {
+  return typeof v === "string" ? v.replace(/[<>]/g, "") : v;
+}
+function isSlug(v) {
+  return typeof v === "string" && /^[a-z0-9-]{1,80}$/.test(v);
+}
 function authMiddleware(req, res, next) {
   const h = req.headers.authorization || "";
   const token = h.startsWith("Bearer ") ? h.slice(7) : "";
@@ -156,13 +178,52 @@ function authMiddleware(req, res, next) {
 // ---------------------------------------------------------------- app
 const app = express();
 app.disable("x-powered-by");
-app.use(helmet({ contentSecurityPolicy: false })); // CSP off: site uses inline scripts
-app.use(cors({ origin: process.env.CORS_ORIGIN || true }));
+// SECURITY (v5): helmet with a real Content-Security-Policy. The site uses
+// inline scripts (gtag config, onclick handlers) and inline styles, so
+// 'unsafe-inline' is required for script-src/style-src; the policy still
+// pins every external source to Google Fonts, Google Analytics and AdSense.
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'",
+        "https://pagead2.googlesyndication.com", "https://googleads.g.doubleclick.net",
+        "https://tpc.googlesyndication.com", "https://adservice.google.com",
+        "https://www.googletagmanager.com", "https://www.google-analytics.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://www.google-analytics.com", "https://region1.google-analytics.com"],
+      frameSrc: ["'self'", "https://googleads.g.doubleclick.net", "https://tpc.googlesyndication.com",
+        "https://adservice.google.com", "https://www.google.com"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+    },
+  },
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+}));
+// SECURITY (v5): CORS allowlist. The frontend is served from the same
+// origin, so it needs no CORS at all. Cross-origin API calls are allowed
+// only from origins listed in CORS_ORIGIN (comma-separated) or, when that
+// is empty, from the live site and localhost. Set CORS_ORIGIN if the
+// frontend is ever hosted on a different domain than the backend.
+const CORS_ORIGINS = (process.env.CORS_ORIGIN || "").split(",").map((s) => s.trim()).filter(Boolean);
+const ALLOWED_ORIGINS = CORS_ORIGINS.length ? CORS_ORIGINS
+  : ["https://gamezone-pk.onrender.com", "http://localhost:3000", "http://127.0.0.1:3000"];
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // same-origin, curl, or non-browser call
+    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    return cb(null, false);
+  },
+}));
 app.use(express.json({ limit: "100kb" }));
 
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100, standardHeaders: true, legacyHeaders: false, message: { error: "Too many requests — please try again later." } });
 const contactLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, message: { error: "Too many messages — please wait a minute and try again." } });
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, message: { error: "Too many login attempts — please try again later." } });
+const scoresLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { error: "Too many scores submitted — please try again later." } });
 app.use("/api/", apiLimiter);
 
 // ---------------------------------------------------------------- public API
@@ -172,7 +233,9 @@ app.get("/api/health", (req, res) => {
 });
 
 app.get("/api/games", (req, res) => {
-  const rows = db.prepare("SELECT * FROM games ORDER BY CAST(REPLACE(plays, ',', '') AS INTEGER) DESC").all();
+  // (v5: sorted by featured first, then title — play counts were invented
+  // figures and are now all 0, so sorting by them was meaningless.)
+  const rows = db.prepare("SELECT * FROM games ORDER BY featured DESC, title ASC").all();
   res.json(rows.map(gameOut));
 });
 app.get("/api/games/:slug", (req, res) => {
@@ -209,10 +272,10 @@ app.get("/api/guides/:slug", (req, res) => {
 });
 
 app.post("/api/contact", contactLimiter, (req, res) => {
-  const name = cleanStr(req.body && req.body.name, 100);
+  const name = stripAngles(cleanStr(req.body && req.body.name, 100));
   const email = (req.body && req.body.email || "").trim();
-  const subject = cleanStr(req.body && req.body.subject, 150) || "General question";
-  const message = cleanStr(req.body && req.body.message, 5000);
+  const subject = stripAngles(cleanStr(req.body && req.body.subject, 150)) || "General question";
+  const message = stripAngles(cleanStr(req.body && req.body.message, 5000));
   if (!name) return res.status(400).json({ error: "Please enter your name." });
   if (!isEmail(email)) return res.status(400).json({ error: "Please enter a valid email address." });
   if (!message) return res.status(400).json({ error: "Please write a message." });
@@ -229,11 +292,11 @@ app.post("/api/newsletter", contactLimiter, (req, res) => {
   res.status(201).json({ ok: true, message: "Thank you! You are subscribed." });
 });
 
-app.post("/api/scores", (req, res) => {
+app.post("/api/scores", scoresLimiter, (req, res) => {
   const gameSlug = cleanStr(req.body && req.body.game_slug, 80);
-  const player = cleanStr(req.body && req.body.player_name, 30) || "Guest";
+  const player = stripAngles(cleanStr(req.body && req.body.player_name, 30)) || "Guest";
   const score = req.body && req.body.score;
-  if (!gameSlug) return res.status(400).json({ error: "game_slug is required." });
+  if (!isSlug(gameSlug)) return res.status(400).json({ error: "game_slug is required and must be a valid game slug." });
   const game = db.prepare("SELECT slug FROM games WHERE slug = ?").get(gameSlug);
   if (!game) return res.status(404).json({ error: "Game not found." });
   if (typeof score !== "number" || !Number.isFinite(score) || score < 0 || score > 99999999) {
@@ -243,6 +306,7 @@ app.post("/api/scores", (req, res) => {
   res.status(201).json({ ok: true, id: Number(info.lastInsertRowid) });
 });
 app.get("/api/scores/:game_slug", (req, res) => {
+  if (!isSlug(req.params.game_slug)) return res.status(400).json({ error: "Invalid game slug." });
   const limit = Math.min(Math.max(parseInt(req.query.limit || "10", 10) || 10, 1), 50);
   const game = db.prepare("SELECT slug FROM games WHERE slug = ?").get(req.params.game_slug);
   if (!game) return res.status(404).json({ error: "Game not found." });
@@ -309,7 +373,7 @@ function adminCrud(table, fields, keyField) {
     const cols = Object.keys(data), ph = cols.map(() => "?").join(",");
     try {
       db.prepare(`INSERT INTO ${table} (${cols.join(",")}) VALUES (${ph})`).run(...cols.map((c) => data[c]));
-    } catch (e) { return res.status(400).json({ error: "Could not save: " + e.message }); }
+    } catch (e) { return res.status(400).json({ error: "Could not save this item. Check the fields and try again." }); }
     res.status(201).json({ ok: true, slug: data.slug });
   });
   app.put(base + "/:slug", authMiddleware, (req, res) => {

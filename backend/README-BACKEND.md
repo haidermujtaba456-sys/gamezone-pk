@@ -17,6 +17,9 @@ whole site, stores data in a SQLite database, and powers the admin panel.
 
 - Default admin login (local demo only): **username `admin`, password `admin123`**
 - The server logs a warning on every start while the default password is in use.
+- Since v5 the server **refuses to start in production** (`NODE_ENV=production`)
+  unless a real `ADMIN_PASSWORD` is set in the environment. On Render it is
+  generated for you (see `render.yaml`).
 - Before any public deploy: set a strong `ADMIN_PASSWORD` and a long random
   `JWT_SECRET` in `.env` (or in your host's environment variables).
 
